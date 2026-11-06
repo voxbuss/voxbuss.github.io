@@ -7,6 +7,7 @@
   <meta name="description" content="Se nästa buss från din hållplats i Värmland.">
   <title>voxbuss — nästa buss i Värmland</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -88,6 +89,39 @@
         </section>
       </section>
 
+      <section class="mt-8 rounded-[26px] border border-[#e5e9e2] bg-white p-5 shadow-[0_12px_42px_rgba(27,51,43,.045)] sm:p-7" aria-labelledby="planner-title">
+        <div class="mb-5">
+          <p class="text-xs font-bold uppercase tracking-[.12em] text-[#839087]">Planera resan</p>
+          <h2 id="planner-title" class="mt-1 text-xl font-semibold tracking-[-.04em] text-[#19332c]">Från A till B</h2>
+        </div>
+        <form id="planner-form" class="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto] md:items-start">
+          <div class="relative">
+            <label for="planner-from" class="mb-2 block text-sm font-semibold text-[#384840]">Från</label>
+            <input id="planner-from" type="search" autocomplete="off" placeholder="Sök startplats" class="h-12 w-full rounded-2xl border border-[#dfe5dc] bg-[#fbfcfa] px-4 text-sm outline-none focus:border-[#739d5f] focus:ring-4 focus:ring-[#8bbd6e]/15" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="planner-from-options">
+            <div id="planner-from-options" class="suggestion-menu hidden" role="listbox" aria-label="Startplatsförslag"></div>
+          </div>
+          <div class="hidden pt-9 text-xl text-[#89938b] md:block" aria-hidden="true">→</div>
+          <div class="relative">
+            <label for="planner-to" class="mb-2 block text-sm font-semibold text-[#384840]">Till</label>
+            <input id="planner-to" type="search" autocomplete="off" placeholder="Sök destination" class="h-12 w-full rounded-2xl border border-[#dfe5dc] bg-[#fbfcfa] px-4 text-sm outline-none focus:border-[#739d5f] focus:ring-4 focus:ring-[#8bbd6e]/15" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="planner-to-options">
+            <div id="planner-to-options" class="suggestion-menu hidden" role="listbox" aria-label="Destinationsförslag"></div>
+          </div>
+          <button type="submit" class="mt-7 h-12 rounded-2xl bg-[#193c32] px-5 text-sm font-semibold text-white transition hover:bg-[#285440] disabled:cursor-not-allowed disabled:opacity-50" id="planner-submit">Sök resa</button>
+        </form>
+        <p id="planner-status" class="mt-4 text-sm text-[#849087]" aria-live="polite">Välj start och destination bland hållplatserna i Värmland.</p>
+        <div id="planner-results" class="mt-4 hidden space-y-3" aria-live="polite"></div>
+      </section>
+
+      <section class="mt-8 overflow-hidden rounded-[26px] border border-[#e5e9e2] bg-white shadow-[0_12px_42px_rgba(27,51,43,.045)]" aria-labelledby="map-title">
+        <div class="flex flex-col gap-1 px-5 py-5 sm:px-7">
+          <p class="text-xs font-bold uppercase tracking-[.12em] text-[#839087]">Trafiken just nu</p>
+          <h2 id="map-title" class="text-xl font-semibold tracking-[-.04em] text-[#19332c]">Bussar på kartan</h2>
+          <p id="map-status" class="text-sm text-[#849087]" aria-live="polite">Hämtar aktuell fordonsposition …</p>
+        </div>
+        <div id="vehicle-map" class="vehicle-map" role="application" aria-label="Karta med Värmlandstrafiks bussars aktuella positioner"></div>
+        <p class="px-5 py-3 text-xs text-[#89938b] sm:px-7">Fordonspositioner från Trafiklab GTFS Regional · Uppdateras var 30:e sekund · Kartdata © OpenStreetMap</p>
+      </section>
+
       <section class="mt-10 overflow-hidden rounded-[26px] border border-[#e5e9e2] bg-white shadow-[0_12px_42px_rgba(27,51,43,.045)] sm:mt-14" aria-labelledby="departures-title">
         <div class="flex flex-col gap-5 border-b border-[#edf0eb] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
           <div>
@@ -147,6 +181,7 @@
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

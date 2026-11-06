@@ -19,6 +19,15 @@
     const favoriteStopButton = document.getElementById("favorite-stop");
     const favoritesSection = document.getElementById("favorites-section");
     const favoritesList = document.getElementById("favorites-list");
+    const plannerForm = document.getElementById("planner-form");
+    const plannerFromInput = document.getElementById("planner-from");
+    const plannerToInput = document.getElementById("planner-to");
+    const plannerFromOptions = document.getElementById("planner-from-options");
+    const plannerToOptions = document.getElementById("planner-to-options");
+    const plannerStatus = document.getElementById("planner-status");
+    const plannerResults = document.getElementById("planner-results");
+    const plannerSubmit = document.getElementById("planner-submit");
+    const mapStatus = document.getElementById("map-status");
 
     let selectedStop = null;
     let favorites = [];
@@ -30,6 +39,13 @@
     let isLoadingDepartures = false;
     let autoRefreshEnabled = true;
     let lastDepartures = [];
+    let plannerFromStop = null;
+    let plannerToStop = null;
+    let plannerSearchTimers = new Map();
+    let plannerSearchControllers = new Map();
+    let vehicleMap = null;
+    let vehicleMarkers = new Map();
+    let vehicleMapHasFitted = false;
 
     function isProxyConfigured() {
       return !API_BASE.includes("YOUR-SUBDOMAIN");
@@ -38,6 +54,262 @@
     function setSearchHint(message, isError = false) {
       searchHint.textContent = message;
       searchHint.className = `mt-4 min-h-4 text-xs leading-5 ${isError ? "text-[#b45345]" : "text-[#849087]"}`;
+    }
+
+    function setPlannerStatus(message, isError = false) {
+      plannerStatus.textContent = message;
+      plannerStatus.className = `mt-4 text-sm ${isError ? "text-[#b45345]" : "text-[#849087]"}`;
+    }
+
+    function renderPlannerOptions(list, stops, selectStopCallback) {
+      list.replaceChildren();
+      for (const stop of stops) {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "suggestion-item";
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        const name = document.createElement("span");
+        name.className = "text-sm font-semibold text-[#304239]";
+        name.textContent = stop.name;
+        const arrow = document.createElement("span");
+        arrow.className = "ml-auto text-lg text-[#9aa59b]";
+        arrow.textContent = "›";
+        option.append(name, arrow);
+        option.addEventListener("click", () => selectStopCallback(stop));
+        list.append(option);
+      }
+      list.classList.toggle("hidden", stops.length === 0);
+      const input = list === plannerFromOptions ? plannerFromInput : plannerToInput;
+      input.setAttribute("aria-expanded", String(stops.length > 0));
+    }
+
+    function setupPlannerStopSearch(input, list, direction) {
+      input.addEventListener("input", () => {
+        const query = input.value.trim();
+        const timers = plannerSearchTimers;
+        const controllers = plannerSearchControllers;
+        const previousTimer = timers.get(direction);
+        if (previousTimer) clearTimeout(previousTimer);
+        controllers.get(direction)?.abort();
+
+        if (direction === "from") plannerFromStop = null;
+        else plannerToStop = null;
+
+        if (query.length < 2) {
+          list.replaceChildren();
+          list.classList.add("hidden");
+          input.setAttribute("aria-expanded", "false");
+          return;
+        }
+
+        timers.set(direction, setTimeout(async () => {
+          if (!isProxyConfigured()) {
+            setPlannerStatus("API-proxyn är inte konfigurerad.", true);
+            return;
+          }
+
+          const controller = new AbortController();
+          controllers.set(direction, controller);
+          setPlannerStatus("Söker hållplatser …");
+
+          try {
+            const response = await fetch(
+              `${API_BASE}/stops/name/${encodeURIComponent(query)}`,
+              { signal: controller.signal }
+            );
+            if (!response.ok) throw new Error(await getApiError(response));
+            const data = await response.json();
+            if (input.value.trim() !== query) return;
+            const stops = (data.stop_groups || []).filter(isInVärmland).slice(0, 6);
+            renderPlannerOptions(list, stops, (stop) => {
+              input.value = stop.name;
+              if (direction === "from") plannerFromStop = stop;
+              else plannerToStop = stop;
+              list.replaceChildren();
+              list.classList.add("hidden");
+              input.setAttribute("aria-expanded", "false");
+              setPlannerStatus("Välj start och destination bland hållplatserna i Värmland.");
+            });
+            setPlannerStatus(stops.length
+              ? "Välj en hållplats från förslagen."
+              : "Hittade inga hållplatser i Värmland med det namnet.", !stops.length);
+          } catch (error) {
+            if (error.name !== "AbortError") setPlannerStatus(error.message, true);
+          }
+        }, 300));
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          list.replaceChildren();
+          list.classList.add("hidden");
+          input.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    function appendText(parent, tag, className, text) {
+      const element = document.createElement(tag);
+      element.className = className;
+      element.textContent = text;
+      parent.append(element);
+      return element;
+    }
+
+    function renderTrips(data) {
+      const trips = Array.isArray(data.Trip) ? data.Trip : data.Trip ? [data.Trip] : [];
+      plannerResults.replaceChildren();
+      plannerResults.classList.toggle("hidden", trips.length === 0);
+
+      for (const trip of trips) {
+        const card = document.createElement("article");
+        card.className = "rounded-2xl border border-[#e5e9e2] bg-[#fbfcfa] p-4 sm:p-5";
+        const legs = trip.LegList?.Leg;
+        const legList = Array.isArray(legs) ? legs : legs ? [legs] : [];
+        const firstLeg = legList[0];
+        const lastLeg = legList[legList.length - 1];
+        const start = firstLeg?.Origin;
+        const end = lastLeg?.Destination;
+        const summary = document.createElement("div");
+        summary.className = "flex flex-wrap items-center justify-between gap-2";
+        appendText(summary, "p", "font-semibold text-[#304239]", `${start?.time || "—"} → ${end?.time || "—"}`);
+        appendText(summary, "p", "text-xs font-medium text-[#718078]", trip.duration || "");
+        card.append(summary);
+
+        const details = document.createElement("div");
+        details.className = "mt-3 space-y-2";
+        for (const leg of legList) {
+          const row = document.createElement("div");
+          row.className = "flex flex-wrap gap-x-2 text-sm text-[#52615a]";
+          const mode = leg.Product?.name || (leg.type === "WALK" ? "Promenad" : "Byte");
+          const fromName = leg.Origin?.name || "Start";
+          const toName = leg.Destination?.name || "Destination";
+          appendText(row, "span", "font-semibold text-[#385a40]", mode);
+          appendText(row, "span", "min-w-0 flex-1", `${fromName} ${leg.Origin?.time || ""} → ${toName} ${leg.Destination?.time || ""}`);
+          details.append(row);
+        }
+        card.append(details);
+        plannerResults.append(card);
+      }
+
+      if (!trips.length) {
+        setPlannerStatus("Hittade inga resor mellan de här hållplatserna. Prova andra hållplatser eller tider.", false);
+      } else {
+        setPlannerStatus(`${trips.length} reseförslag från ResRobot.`);
+      }
+    }
+
+    async function planJourney(event) {
+      event.preventDefault();
+      plannerResults.replaceChildren();
+      plannerResults.classList.add("hidden");
+
+      if (!plannerFromStop || !plannerToStop) {
+        setPlannerStatus("Välj både startplats och destination bland sökförslagen.", true);
+        return;
+      }
+      if (String(plannerFromStop.id) === String(plannerToStop.id)) {
+        setPlannerStatus("Välj två olika hållplatser.", true);
+        return;
+      }
+
+      plannerSubmit.disabled = true;
+      setPlannerStatus("Hämtar reseförslag …");
+      try {
+        const query = new URLSearchParams({
+          originId: plannerFromStop.id,
+          destinationId: plannerToStop.id
+        });
+        const response = await fetch(`${API_BASE}/trips?${query}`);
+        if (!response.ok) throw new Error(await getApiError(response));
+        renderTrips(await response.json());
+      } catch (error) {
+        setPlannerStatus(error.message, true);
+      } finally {
+        plannerSubmit.disabled = false;
+      }
+    }
+
+    function initializeVehicleMap() {
+      if (!window.L) {
+        mapStatus.textContent = "Kartan kunde inte laddas. Kontrollera anslutningen och försök igen.";
+        return;
+      }
+
+      vehicleMap = L.map("vehicle-map").setView([59.5, 13.3], 8);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(vehicleMap);
+
+      updateVehiclePositions();
+      setInterval(updateVehiclePositions, 30_000);
+    }
+
+    function createVehiclePopup(vehicle) {
+      const popup = document.createElement("div");
+      const label = vehicle.label || vehicle.routeId || "Värmlandstrafik";
+      appendText(popup, "strong", "", `Buss ${label}`);
+      if (vehicle.tripId) appendText(popup, "div", "", `Tur ${vehicle.tripId}`);
+      if (vehicle.timestamp) {
+        appendText(popup, "div", "", `Position ${formatClock(new Date(vehicle.timestamp * 1000))}`);
+      }
+      return popup;
+    }
+
+    async function updateVehiclePositions() {
+      if (!vehicleMap) return;
+      try {
+        const response = await fetch(`${API_BASE}/vehicles`);
+        if (!response.ok) throw new Error(await getApiError(response));
+        const data = await response.json();
+        const vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+        const currentIds = new Set();
+        const busIcon = L.divIcon({
+          className: "",
+          html: '<span class="vehicle-marker" aria-hidden="true">B</span>',
+          iconSize: [34, 34],
+          iconAnchor: [17, 17]
+        });
+
+        for (const vehicle of vehicles) {
+          if (!Number.isFinite(vehicle.latitude) || !Number.isFinite(vehicle.longitude)) continue;
+          const id = vehicle.id || vehicle.vehicleId || `${vehicle.latitude},${vehicle.longitude}`;
+          currentIds.add(id);
+          const location = [vehicle.latitude, vehicle.longitude];
+          const marker = vehicleMarkers.get(id);
+          if (marker) {
+            marker.setLatLng(location);
+            marker.setPopupContent(createVehiclePopup(vehicle));
+          } else {
+            vehicleMarkers.set(id, L.marker(location, { icon: busIcon })
+              .bindPopup(createVehiclePopup(vehicle))
+              .addTo(vehicleMap));
+          }
+        }
+
+        for (const [id, marker] of vehicleMarkers) {
+          if (!currentIds.has(id)) {
+            marker.remove();
+            vehicleMarkers.delete(id);
+          }
+        }
+
+        if (!vehicleMapHasFitted && vehicles.length) {
+          const markers = [...vehicleMarkers.values()];
+          if (markers.length) vehicleMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.12), { maxZoom: 11 });
+          vehicleMapHasFitted = true;
+        }
+
+        const updatedAt = data.timestamp ? formatClock(new Date(data.timestamp * 1000)) : formatClock(new Date());
+        const vehicleCount = vehicles.length === 1 ? "1 buss" : `${vehicles.length} bussar`;
+        mapStatus.textContent = vehicles.length
+          ? `${vehicleCount} på kartan · Uppdaterad ${updatedAt}`
+          : `Inga aktiva fordonspositioner just nu · Uppdaterad ${updatedAt}`;
+      } catch (error) {
+        mapStatus.textContent = `Kunde inte hämta fordonspositioner: ${error.message}`;
+      }
     }
 
     function loadFavorites() {
@@ -247,10 +519,22 @@
         return "Cloudflare Worker avvisade webbplatsens origin. Kontrollera inställningen ALLOWED_ORIGIN.";
       }
       if (response.status === 401 || response.status === 403) {
+        if (detail === "ResRobot route request failed." && (upstreamStatus === 401 || upstreamStatus === 403)) {
+          return "ResRobot avvisade API-nyckeln. Kontrollera att nyckeln är aktiv för ResRobot v2.1.";
+        }
+        if (detail === "GTFS Regional vehicle-position request failed." && (upstreamStatus === 401 || upstreamStatus === 403)) {
+          return "Trafiklab avvisade GTFS Regional Realtime-nyckeln. Kontrollera att den är aktiv för GTFS Regional.";
+        }
         if (detail === "Trafiklab request failed." && (upstreamStatus === 401 || upstreamStatus === 403)) {
           return "Trafiklab avvisade Worker-nyckeln. Kontrollera att nyckeln är aktiv för API:t.";
         }
         return "Begäran nekades. Kontrollera Cloudflare Workers-inställningarna och Trafiklab-nyckeln.";
+      }
+      if (response.status === 503 && detail === "The ResRobot API key is not configured.") {
+        return "ResRobot-nyckeln saknas i Cloudflare Worker. Lägg till RESROBOT_API_KEY som en secret.";
+      }
+      if (response.status === 503 && detail === "The GTFS Regional Realtime API key is not configured.") {
+        return "Nyckel för GTFS Regional Realtime saknas i Cloudflare Worker. Lägg till GTFS_REGIONAL_REALTIME_API_KEY som en secret.";
       }
       if (response.status === 429) return "Trafiklabs gräns för API-anrop är nådd. Vänta en stund och försök igen.";
       return detail || `Trafiklab svarade med fel ${response.status}. Försök igen senare.`;
@@ -498,6 +782,9 @@
 
     refreshNowButton.addEventListener("click", () => loadDepartures());
     favoriteStopButton.addEventListener("click", toggleFavorite);
+    setupPlannerStopSearch(plannerFromInput, plannerFromOptions, "from");
+    setupPlannerStopSearch(plannerToInput, plannerToOptions, "to");
+    plannerForm.addEventListener("submit", planJourney);
 
     setInterval(() => {
       if (lastDepartures.length && !departuresList.classList.contains("hidden")) {
@@ -506,6 +793,7 @@
     }, 15_000);
 
     loadFavorites();
+    initializeVehicleMap();
 
     if (!isProxyConfigured()) {
       setSearchHint("Ange din Cloudflare Worker-adress i API_BASE högst upp i app.js.", true);

@@ -67,6 +67,27 @@
     .favorite-remove { padding: 6px 10px 6px 6px; color: #879188; }
     .favorite-remove:hover { color: #a44c3d; }
 
+    .vehicle-map {
+      width: 100%;
+      height: clamp(300px, 52vw, 520px);
+      background: #eaf0e5;
+    }
+
+    .vehicle-marker {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #193c32;
+      color: #d3f28e;
+      box-shadow: 0 2px 8px rgb(23 35 33 / 28%);
+      font-size: 15px;
+    }
+
+    .leaflet-container { font: inherit; }
+
     .departure-row { border-top: 1px solid #edf0eb; }
     .departure-row:first-child { border-top: 0; }
     .line-badge {
