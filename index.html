@@ -1,6 +1,140 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>My Web Page</title>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f0">
+  <meta name="description" content="Se nästa buss från din hållplats i Värmland.">
+  <title>voxbuss — nästa buss i Värmland</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="min-h-screen">
+    <header class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+      <a href="#" class="flex items-center gap-3 text-xl font-black tracking-[-.07em]" aria-label="voxbuss startsida">
+        <span class="grid h-10 w-10 place-items-center rounded-[14px] bg-[#193c32] text-[#c5f176]">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M6 7l1.5 10h9L18 7M9 11v2m6-2v2M8 17l-1 2m10-2 1 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span>vox<span class="text-[#4f8d3e]">buss</span></span>
+      </a>
+      <div class="hidden items-center gap-2 rounded-full border border-[#e1e6dd] bg-white/70 px-3.5 py-2 text-xs font-semibold text-[#52615a] sm:flex">
+        <span class="relative flex h-2 w-2">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#82bf59] opacity-40"></span>
+          <span class="relative inline-flex h-2 w-2 rounded-full bg-[#5b9c3d]"></span>
+        </span>
+        Värmlandstrafik · realtid
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-5 pb-12 pt-5 sm:px-8 sm:pt-12 lg:px-12">
+      <section class="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-end lg:gap-16">
+        <div class="max-w-2xl">
+          <div class="mb-5 inline-flex items-center gap-2 rounded-full bg-[#e8eee1] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.13em] text-[#52634c]">
+            <span class="h-1.5 w-1.5 rounded-full bg-[#77aa4b]"></span>
+            Busslivet, lite enklare
+          </div>
+          <h1 class="text-[clamp(2.8rem,7vw,5.8rem)] font-semibold leading-[.99] tracking-[-.075em] text-[#19332c]">
+            Nästa buss.<br>
+            <span class="text-[#82a66b]">Hela Värmland.</span>
+          </h1>
+          <p class="mt-5 max-w-lg text-base leading-7 text-[#65716b] sm:text-lg">
+            Hitta en hållplats och se avgångarna i realtid. Mindre väntan, mer väg framåt.
+          </p>
+        </div>
+
+        <section class="relative rounded-[26px] border border-[#e5e9e2] bg-white p-5 shadow-[0_12px_42px_rgba(27,51,43,.045)] sm:p-7" aria-labelledby="search-title">
+          <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-[.12em] text-[#839087]">Börja här</p>
+              <h2 id="search-title" class="mt-1 text-xl font-semibold tracking-[-.04em] text-[#19332c]">Vart ska du åka?</h2>
+            </div>
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#f0f5eb] text-[#507b40]">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z" stroke="currentColor" stroke-width="1.7"/>
+                <circle cx="12" cy="9" r="2.3" stroke="currentColor" stroke-width="1.7"/>
+              </svg>
+            </span>
+          </div>
+          <label for="stop-search" class="mb-2 block text-sm font-semibold text-[#384840]">Sök hållplats</label>
+          <div class="relative">
+            <div class="flex items-center gap-3 rounded-2xl border border-[#dfe5dc] bg-[#fbfcfa] px-4 transition focus-within:border-[#739d5f] focus-within:ring-4 focus-within:ring-[#8bbd6e]/15">
+              <svg class="shrink-0 text-[#738078]" width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.8"/>
+                <path d="m16 16 4.3 4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <input id="stop-search" type="search" autocomplete="off" spellcheck="false" placeholder="T.ex. Karlstad Resecentrum" class="h-14 min-w-0 flex-1 bg-transparent text-[15px] font-medium text-[#23372f] outline-none placeholder:font-normal placeholder:text-[#98a29b]" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestions">
+              <span class="hidden rounded-md border border-[#e2e7df] bg-white px-1.5 py-1 text-[10px] font-semibold text-[#929c94] sm:inline">Sök</span>
+            </div>
+            <div id="suggestions" class="suggestion-menu hidden" role="listbox" aria-label="Hållplatsförslag"></div>
+          </div>
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <span class="mr-1 text-xs text-[#8a948c]">Prova</span>
+            <button type="button" class="search-example rounded-full border border-[#e3e8e0] px-3 py-1.5 text-xs font-semibold text-[#57665d] transition hover:border-[#9dbb87] hover:bg-[#f4f8f0]" data-query="Karlstad Resecentrum">Karlstad Resecentrum</button>
+            <button type="button" class="search-example rounded-full border border-[#e3e8e0] px-3 py-1.5 text-xs font-semibold text-[#57665d] transition hover:border-[#9dbb87] hover:bg-[#f4f8f0]" data-query="Bergvik">Bergvik</button>
+          </div>
+          <p id="search-hint" class="mt-4 min-h-4 text-xs leading-5 text-[#849087]" aria-live="polite">
+            Hållplatser visas bara för Värmland.
+          </p>
+        </section>
+      </section>
+
+      <section class="mt-10 overflow-hidden rounded-[26px] border border-[#e5e9e2] bg-white shadow-[0_12px_42px_rgba(27,51,43,.045)] sm:mt-14" aria-labelledby="departures-title">
+        <div class="flex flex-col gap-5 border-b border-[#edf0eb] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
+          <div>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <h2 id="departures-title" class="text-xl font-semibold tracking-[-.04em] text-[#19332c]">Avgångar</h2>
+              <span id="live-badge" class="hidden items-center gap-1.5 rounded-full bg-[#eef6e9] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-[#4c7a3a]">
+                <span class="h-1.5 w-1.5 rounded-full bg-[#6eaa4f]"></span>Live
+              </span>
+            </div>
+            <p id="selected-stop-name" class="mt-1 text-sm text-[#849087]">Välj en hållplats för att se nästa bussar</p>
+          </div>
+          <div class="flex items-center justify-between gap-4 sm:justify-end">
+            <div class="flex items-center gap-2.5">
+              <span id="refresh-indicator" class="hidden"><span class="spinner" aria-label="Uppdaterar"></span></span>
+              <label for="auto-refresh" class="cursor-pointer text-xs font-medium text-[#627067]">Uppdatera automatiskt</label>
+              <button id="auto-refresh" type="button" role="switch" aria-checked="true" aria-label="Uppdatera automatiskt var 60:e sekund" class="relative h-6 w-11 rounded-full bg-[#315c39] transition-colors" title="Uppdatera automatiskt var 60:e sekund">
+                <span class="absolute right-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all"></span>
+              </button>
+            </div>
+            <button id="refresh-now" type="button" class="grid h-9 w-9 place-items-center rounded-xl border border-[#e6eae4] text-[#627067] transition hover:bg-[#f3f6f0] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Uppdatera avgångar" title="Uppdatera nu" disabled>
+              <svg id="refresh-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 7v5h-5M4 17v-5h5m-3.1-3.3A7 7 0 0 1 18.7 7L20 12M4 12l1.3 5a7 7 0 0 0 12.8-1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="board-content" aria-live="polite" aria-busy="false">
+          <div id="board-empty" class="px-5 py-14 text-center sm:px-8">
+            <div class="noise mx-auto grid h-16 w-16 place-items-center rounded-[22px] bg-[#f0f4eb] text-[#5b8050]">
+              <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 18V7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5V18H5Zm0 0h14m-11 0-1.5 2m9.5-2 1.5 2M8 9h8m-8 4h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p id="empty-title" class="mt-4 text-sm font-semibold text-[#34483c]">Din hållplats väntar</p>
+            <p id="empty-message" class="mx-auto mt-1 max-w-sm text-sm leading-6 text-[#879188]">Sök efter en hållplats ovan så visar vi kommande bussavgångar.</p>
+            <button id="empty-action" type="button" class="mt-4 hidden text-sm font-semibold text-[#49763a] underline decoration-[#bfd2b2] underline-offset-4 hover:text-[#315b2d]"></button>
+          </div>
+          <div id="departures-list" class="hidden px-5 sm:px-7" role="list"></div>
+        </div>
+
+        <div id="board-footer" class="hidden flex-wrap items-center justify-between gap-2 border-t border-[#edf0eb] px-5 py-3.5 text-[11px] text-[#89938b] sm:px-7">
+          <span id="last-updated">Senast uppdaterad —</span>
+          <span>Visar bussar de kommande 60 minuterna</span>
+        </div>
+      </section>
+
+      <footer class="mt-7 flex flex-col gap-2 text-xs leading-5 text-[#89938b] sm:flex-row sm:items-center sm:justify-between">
+        <p>Data från <a href="https://www.trafiklab.se/api/our-apis/trafiklab-realtime-apis/" target="_blank" rel="noreferrer" class="font-semibold text-[#65756a] underline decoration-[#c5cec2] underline-offset-2">Trafiklab</a> · licensierad under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" class="font-semibold text-[#65756a] underline decoration-[#c5cec2] underline-offset-2">CC BY 4.0</a></p>
+        <p>Avgångar kan ändras. Kontrollera alltid skyltningen på plats.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
