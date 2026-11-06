@@ -43,6 +43,30 @@
     .suggestion-item:hover, .suggestion-item[aria-selected="true"] { background: #f3f7ef; }
     .suggestion-item + .suggestion-item { border-top: 1px solid #f0f2ee; }
 
+    .favorite-item {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      border: 1px solid #e3e8e0;
+      border-radius: 999px;
+      background: #fff;
+      color: #57665d;
+      font-size: .75rem;
+      font-weight: 600;
+      transition: border-color .15s ease, background .15s ease;
+    }
+
+    .favorite-item:hover { border-color: #9dbb87; background: #f4f8f0; }
+    .favorite-chip {
+      min-width: 0;
+      padding: 7px 4px 7px 12px;
+      text-align: left;
+    }
+
+    .favorite-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .favorite-remove { padding: 6px 10px 6px 6px; color: #879188; }
+    .favorite-remove:hover { color: #a44c3d; }
+
     .departure-row { border-top: 1px solid #edf0eb; }
     .departure-row:first-child { border-top: 0; }
     .line-badge {

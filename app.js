@@ -16,8 +16,12 @@
     const emptyTitle = document.getElementById("empty-title");
     const emptyMessage = document.getElementById("empty-message");
     const emptyAction = document.getElementById("empty-action");
+    const favoriteStopButton = document.getElementById("favorite-stop");
+    const favoritesSection = document.getElementById("favorites-section");
+    const favoritesList = document.getElementById("favorites-list");
 
     let selectedStop = null;
+    let favorites = [];
     let searchTimer = null;
     let searchController = null;
     let refreshTimer = null;
@@ -34,6 +38,95 @@
     function setSearchHint(message, isError = false) {
       searchHint.textContent = message;
       searchHint.className = `mt-4 min-h-4 text-xs leading-5 ${isError ? "text-[#b45345]" : "text-[#849087]"}`;
+    }
+
+    function loadFavorites() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("voxbuss:favorites:v1") || "[]");
+        if (!Array.isArray(saved)) throw new Error("Invalid favorites data");
+        favorites = saved.filter((stop) =>
+          stop && /^\d+$/.test(String(stop.id)) && typeof stop.name === "string"
+        );
+        renderFavorites();
+      } catch {
+        favorites = [];
+        renderFavorites();
+        setSearchHint("Favoriter kunde inte läsas i den här webbläsaren.", true);
+      }
+    }
+
+    function saveFavorites(nextFavorites) {
+      try {
+        localStorage.setItem("voxbuss:favorites:v1", JSON.stringify(nextFavorites));
+        favorites = nextFavorites;
+        renderFavorites();
+        updateFavoriteButton();
+        return true;
+      } catch {
+        setSearchHint("Favoriten kunde inte sparas. Kontrollera webbläsarens lagringsinställningar.", true);
+        return false;
+      }
+    }
+
+    function renderFavorites() {
+      favoritesList.replaceChildren();
+      favoritesSection.classList.toggle("hidden", favorites.length === 0);
+
+      for (const stop of favorites) {
+        const item = document.createElement("div");
+        item.className = "favorite-item";
+
+        const selectButton = document.createElement("button");
+        selectButton.type = "button";
+        selectButton.className = "favorite-chip";
+        selectButton.textContent = stop.name;
+        selectButton.title = `Näytä avgångar från ${stop.name}`;
+        selectButton.addEventListener("click", () => selectStop(stop));
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "favorite-remove";
+        removeButton.textContent = "×";
+        removeButton.setAttribute("aria-label", `Ta bort ${stop.name} från favoriter`);
+        removeButton.addEventListener("click", () => removeFavorite(stop.id));
+
+        item.append(selectButton, removeButton);
+        favoritesList.append(item);
+      }
+    }
+
+    function isFavorite(stop) {
+      return favorites.some((favorite) => String(favorite.id) === String(stop.id));
+    }
+
+    function updateFavoriteButton() {
+      const saved = Boolean(selectedStop && isFavorite(selectedStop));
+      favoriteStopButton.setAttribute("aria-pressed", String(saved));
+      favoriteStopButton.setAttribute(
+        "aria-label",
+        saved ? "Ta bort hållplats från favoriter" : "Spara hållplats som favorit"
+      );
+      favoriteStopButton.innerHTML = `<span aria-hidden="true">${saved ? "★" : "☆"}</span> ${saved ? "Sparad" : "Spara favorit"}`;
+      favoriteStopButton.classList.toggle("text-[#507b40]", saved);
+    }
+
+    function toggleFavorite() {
+      if (!selectedStop) return;
+      if (isFavorite(selectedStop)) {
+        removeFavorite(selectedStop.id);
+        return;
+      }
+
+      const stopToSave = {
+        id: String(selectedStop.id),
+        name: selectedStop.name,
+        area_type: selectedStop.area_type || "RIKSHALLPLATS"
+      };
+      saveFavorites([...favorites, stopToSave]);
+    }
+
+    function removeFavorite(stopId) {
+      saveFavorites(favorites.filter((stop) => String(stop.id) !== String(stopId)));
     }
 
     function showSuggestions(items) {
@@ -141,15 +234,23 @@
 
     async function getApiError(response) {
       let detail = "";
+      let upstreamStatus = null;
       try {
         const data = await response.json();
         detail = data.message || data.error || "";
+        upstreamStatus = data.status || null;
       } catch {
         detail = "";
       }
 
+      if (response.status === 403 && detail === "Origin not allowed.") {
+        return "Cloudflare Worker avvisade webbplatsens origin. Kontrollera inställningen ALLOWED_ORIGIN.";
+      }
       if (response.status === 401 || response.status === 403) {
-        return "Trafiklab avvisade API-nyckeln. Kontrollera att nyckeln är korrekt och aktiverad för Realtime APIs.";
+        if (detail === "Trafiklab request failed." && (upstreamStatus === 401 || upstreamStatus === 403)) {
+          return "Trafiklab avvisade Worker-nyckeln. Kontrollera att nyckeln är aktiv för API:t.";
+        }
+        return "Begäran nekades. Kontrollera Cloudflare Workers-inställningarna och Trafiklab-nyckeln.";
       }
       if (response.status === 429) return "Trafiklabs gräns för API-anrop är nådd. Vänta en stund och försök igen.";
       return detail || `Trafiklab svarade med fel ${response.status}. Försök igen senare.`;
@@ -170,6 +271,8 @@
       selectedStop = stop;
       searchInput.value = stop.name;
       selectedStopName.textContent = stop.name;
+      favoriteStopButton.classList.remove("hidden");
+      updateFavoriteButton();
       hideSuggestions();
       searchInput.blur();
       refreshNowButton.disabled = false;
@@ -394,12 +497,15 @@
     });
 
     refreshNowButton.addEventListener("click", () => loadDepartures());
+    favoriteStopButton.addEventListener("click", toggleFavorite);
 
     setInterval(() => {
       if (lastDepartures.length && !departuresList.classList.contains("hidden")) {
         renderDepartures(lastDepartures);
       }
     }, 15_000);
+
+    loadFavorites();
 
     if (!isProxyConfigured()) {
       setSearchHint("Ange din Cloudflare Worker-adress i API_BASE högst upp i app.js.", true);
